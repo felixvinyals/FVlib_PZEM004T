@@ -14,7 +14,7 @@ float FVlib_PZEM004T::readVoltage() {
   setCommunicationAddress();
 
   (*softPort).write(askVoltage, 7);
-  receive(false);
+  if (receive(false) == true) return 0;
 
   voltage = (float) buffer[3] / 10;
   voltage = voltage + buffer[2];
@@ -27,7 +27,7 @@ float FVlib_PZEM004T::readCurrent() {
   setCommunicationAddress();
 
   (*softPort).write(askCurrent, 7);
-  receive(false);
+  if (receive(false) == true) return 0;
 
   if (buffer[3] < 10) current = (float) buffer[3] / 10;
   else current = (float) buffer[3] / 100;
@@ -42,10 +42,7 @@ unsigned int FVlib_PZEM004T::readPower() {
   setCommunicationAddress();
 
   (*softPort).write(askPower, 7);
-  receive(false);
-
-  //Serial.println(buffer[1]);
-  //Serial.println(buffer[2]);
+  if (receive(false) == true) return 0;
 
   power = buffer[1];
   power = power << 8;
@@ -55,22 +52,25 @@ unsigned int FVlib_PZEM004T::readPower() {
 }
 
 
-/*boolean FVlib_PZEM004T::send(byte* message) {
-  (*softPort).write(*message, 7);
-}*/
-
-
 boolean FVlib_PZEM004T::receive(boolean printBuffer) {
+// Return: false Ok, true Error
   if (printBuffer == true) Serial.println("receiving...");
     for(byte index = 0; index < 7; index++) {
-      waitBufferToFill();
+      if (waitBufferToFill() == true) {
+        Serial.println("Timeout");
+        return true;
+      }
       buffer[index] = (*softPort).read();
       if (printBuffer == true) Serial.println(buffer[index], HEX);
     }
-    if((*softPort).available() > 0) return true;
+    if((*softPort).available() > 0) {
+      Serial.println("Serial buffer not empty");
+      return true;
+    }
     else {
       if (checksumError() == 0) return false;
       else {
+        Serial.println("Checksum Error");
         return true;
       }
     }
